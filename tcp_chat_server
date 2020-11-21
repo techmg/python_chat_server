@@ -1,0 +1,102 @@
+from socket import *
+import threading
+import time
+import msvcrt
+from colorama import init
+from termcolor import colored
+init()
+start_msg='''
+##############################################################
+#                                                            #
+#             This is TCP CHAT SERVER LOG                    #
+#                                                            #
+##############################################################'''
+s_input=''
+#f=
+lock=threading.Lock()
+def send_to_client(x):
+    global conn
+    u=x.getpeername();
+    while True:
+        while (1):
+            i=0
+            while(msvcrt.kbhit()==True):
+                lock.acquire()
+                msgi='Message : to client #'+str(u[0]),str(u[1])+'#'
+                s_input=input(msgi)
+                lock.release()
+                i=1
+            if i==1:
+                break
+        if s_input=='exit':
+            break
+        if s_input!='':
+            s_input=str(len(s_input)).zfill(2)+s_input
+            try:
+                x.send(s_input.encode())
+            except ConnectionResetError:
+              print("INFO: Connection closed by peer",x.getpeername())
+              x.close()
+              conn=conn-1
+              return 0
+            except:
+              print("INFO: Something else went wrong")
+              x.close()
+              conn=conn-1
+              return 0
+
+def recv_client_data(x):
+    global conn
+    global c
+    while True:
+        try:
+            length=(x.recv(2))
+        except ConnectionResetError:
+          print("INFO: Connection closed by peer",x.getpeername())
+          x.close()
+          conn=conn-1
+          return 0
+        except:
+          print("INFO: Something else went wrong")
+          x.close()
+          conn=conn-1
+          return 0
+        if length==b'':
+            continue
+        length=int(length)
+        data=x.recv(length).decode()
+        lock.acquire()
+        msgi="Message : Client#"+str(x.getpeername())+"# "+data
+        print(colored(msgi,'green'))
+        msgi=str(len(msgi)).zfill(2)+msgi
+        for h in c:
+            try:
+                if h==x:
+                    continue
+                h.send(msgi.encode())
+            except:
+                print("INFO: Something went wrong")
+        lock.release()
+        
+print(start_msg)
+s=socket()
+s.bind(('127.0.0.1',55555))
+print('\nINFO: Listening on ip: 127.0.0.1 port',55555)
+s.listen(3)
+
+conn=0
+global c
+global a
+c=[0,0,0]
+a=[0,0,0]
+i=0
+while True:
+    c[i],a[i]=s.accept()
+    conn=conn+1;
+    print('INFO: ',a[i][0],':',a[i][1],'got connected')
+    print('INFO: ',conn,'live connection');
+    time.sleep(5)
+    #threading.Thread(target=send_to_client, args=(c[i],)).start()
+    threading.Thread(target=recv_client_data, args=(c[i],)).start()
+    i=i+1
+    
